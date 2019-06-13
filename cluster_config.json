@@ -1,0 +1,32 @@
+{
+    "general": {
+            "workdir": "/mnt/sin/kchestnov/workdir",
+            "iso": "/mnt/sin/goods/some_centos.iso",
+            "ks": "http://172.16.56.80/ks/cluster_config.cfg",
+            "ks_device": "eth0"
+    },
+    "cluster": {
+            "name": "kchestnov-test-cluster",
+            "public_net": {
+                    "ips": ["172.16.56.135", "172.16.56.136", "172.16.56.137"],
+                    "mask": "255.255.252.0",
+                    "gw": "172.16.56.1",
+                    "dns": "10.30.0.27"
+            },
+            "private_net": {
+                    "create": "True",
+                    "mask": "255.255.255.0"
+            },
+            "keys": {
+                    "owner_key": "somekey",
+                    "ansible_key": "someanotherkey",
+            },
+    },
+    "va": {
+        "ip": "172.16.56.108"
+    },
+    "storage_ui":{
+        "ip": "172.16.56.109",
+        "token": "aabbcc"
+    }
+}
