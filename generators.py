@@ -1,5 +1,8 @@
 #!/usr/bin/python3
 import datetime
+import json
+from vm_tools import Vm
+
 
 def generate_cmdline(**kwargs):
 
@@ -32,59 +35,75 @@ def generate_timestamp(base):
     return name
 
 
-def generate_dumpxml(workdir, vm_name, vmlinuz, initrd, commandline):
+def generate_config(json_config):
 
-    domainxml = os.path.join(workdir, "configs", vm_name)
-    domainxml_tmp = domainxml + "_tmp"
+    # Create an array to store VMs:
+    vms = []
 
-    with open(domainxml, 'w') as file:
-        subprocess.call(["virsh", "dumpxml", vm_name], stdout=file)
+    with open(json_config) as f:
+        config = json.load(f)
+        i = 1
+        general_options = {}
+        general_options['workdir'] = config['general']['workdir']
+        general_options['iso'] = config['general']['iso']
+        general_options['ks'] = config['general']['ks']
+        general_options['ks_device'] = config['general']['ks_device']
+        general_options['name'] = config['cluster']['name']
+        general_options['va'] = config['va']
+        general_options['storage_ui'] = config['storage_ui']
 
-    with open(domainxml) as file:
-        tmp = file.readlines()
+        for vm_public_ip in config['cluster']['public_net']['ips']:
+            # the name_generator should be better.
+            options = {}
+            options['iso_name'] = config['general']['iso']
+            options['hostname'] = generate_timestamp(config['cluster']['name']) + "-" + str(i)
+            options['public_ip'] = vm_public_ip
+            options['public_mask'] = config['cluster']['public_net']['mask']
+            options['public_gw'] = config['cluster']['public_net']['gw']
+            options['public_dns'] = config['cluster']['public_net']['dns']
+            options['ks_device'] = config['general']['ks_device']
+            options['ks'] = config['general']['ks']
 
-        for index, line in enumerate(tmp):
-            if "<qemu:commandline>" in line:
-                # Need to rewrite for XML
-                # This is not cool at all
-                tmp.insert(index + 1,"    <qemu:arg value='{}'/>\n".format(vmlinuz))
-                tmp.insert(index + 1,"    <qemu:arg value='-kernel'/>\n")
-                tmp.insert(index + 1,"    <qemu:arg value='{}'/>\n".format(initrd))
-                tmp.insert(index + 1,"    <qemu:arg value='-initrd'/>\n")
-                tmp.insert(index + 1,"    <qemu:arg value='{}'/>\n".format(commandline))
-                tmp.insert(index + 1,"    <qemu:arg value='-append'/>\n")
+            if config['cluster']['private_net']['create'] == "True":
+                options['private_ip'] = generate_private_ip(vm_public_ip)
+                options['private_mask'] = config['cluster']['private_net']['mask']
 
-        with open(domainxml_tmp, 'w') as file:
-            for line in tmp:
-                file.write(line)
+            # Try to create management containers
+            # Final decision is made by a kickstart file
+            # Depends on given cmdline options
+            # In case of troubles check cat /proc/cmdline
+            # From anaconda and compare with kickstart
+            # For example if you not specify IP address
+            # The kickstart will not create VA
+            # Same for UI
+            # Token should be obtain somehow later.
+            # Actually this decision affects future cluster updates.
+            # Probably I could write a value "general" "is_created"
+            # So it will not be added later if additional VM should be added to
+            # an existed cluster with ui
 
-        return domainxml_tmp
+            if i == 1 and not config['general']['is_created']:
+                options['includes_va'] = True
+                options['va_ip'] = config['va']['ip']
+                options['includes_storage_ui'] = True
+                options['storage_ui_ip'] = config['storage_ui']['ip']
+            # In case there is no such values left blank
+            else:
+                options['va_ip'] = config['va']['ip']
+                options['storage_ui_ip'] = config['storage_ui']['ip']
+                options['storage_ui_token'] = config['storage_ui']['token']
+            vm = Vm(options, generate_cmdline(**options))
+            # I probably need to check VM names and try to create a VM.
+            # If it was successfully created I need to create an dumpxml right here.
+            # If something goes wrong the script must be stopped.
+            vms.append(vm)
+            i += 1
 
-def test_1():
-
-    options = {'hostname': "kchestnov",
-            'iso_name': "cloud_linux.iso",
-            'public_ip': "172.16.56.80",
-            'public_mask': "255.255.252.0",
-            'public_gw': "172.16.56.1",
-            'public_dns': "10.30.0.27",
-            'ks_device': "eth0",
-            'ks': "http://172.16.56.80/ks/cluster_config.cfg",
-            'private_ip': "",
-            'private_mask': "255.255.255.0",
-            'includes_va': False,
-            'va_register': False,
-            'va_ip': "",
-            'includes_storage_ui': False,
-            'storage_ui_register': False,
-            'storage_ui_ip': "",
-            'storage_ui_token': ""}
-
-    print(generate_cmdline(**options))
+    return vms, general_options
 
 
 def main():
-    test_1()
+    pass
 
 
 if __name__ == "__main__":

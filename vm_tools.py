@@ -1,14 +1,13 @@
 #!/usr/bin/python3
 import subprocess
-from generators import generate_cmdline
+
 
 # Need to make it works
 class Vm:
 
-
-    def __init__(self, options):
+    def __init__(self, options, cmdline):
         self.options = options
-        self.cmdline = generate_cmdline(**self.options)
+        self.cmdline = cmdline
     # define
     # create
     # configure
@@ -24,46 +23,66 @@ def define_vm(domainxml):
 
 
 # Rewrite to subprocess.run()
-def create_vm(vm_name, description):
-    # Create the VM
-    subprocess.call([
-        "prlctl", "create", vm_name,
-        "--vmtype", "vm",
-        "--distribution", "vzlinux7"
-        ], stdout=False)
-    # Add some description
-    subprocess.call([
-        "prlctl", "set", vm_name,
-        "--description", description
-        ], stdout=False)
-    # Disable filtering
-    subprocess.call([
-        "prlctl", "set", vm_name,
-        "--device-set", "net0",
-        "--ipfilter", "no",
-        "--macfilter", "no",
-        "--preventpromisc", "no"
-        ], stdout=False)
+def create_vm(vm_name, description, iso):
 
-    # Add VNC config
-    subprocess.call([
-        "prlctl", "set", vm_name,
-        "--vnc-mode", "auto"
-        ], stdout=False)
+    subprocess.call(["prlctl", "create", vm_name,
+                     "--vmtype", "vm",
+                     "--distribution", "vzlinux7"]
+                    , stdout=False)
 
-    # Attach cdrom
-    subprocess.call([
-        "prlctl", "set", vm_name,
-        "--device-set", "cdrom0",
-        "--connect",
-        "--image", iso
-        ], stdout=False)
+    subprocess.call(["prlctl", "set", vm_name,
+                     "--description", description]
+                    , stdout=False)
+
+    subprocess.call(["prlctl", "set", vm_name,
+                     "--device-set", "net0",
+                     "--ipfilter", "no",
+                     "--macfilter", "no",
+                     "--preventpromisc", "no"]
+                    , stdout=False)
+
+    subprocess.call(["prlctl", "set", vm_name,
+                     "--vnc-mode", "auto"]
+                    , stdout=False)
+
+    subprocess.call(["prlctl", "set", vm_name,
+                     "--device-set", "cdrom0",
+                     "--connect", "--image", iso]
+                    , stdout=False)
 
     # Enable support of  nested virt
-    subprocess.call([
-        "prlctl", "set", vm_name,
-        "--nested-virt", "on"
-        ], stdout=False)
+    subprocess.call(["prlctl", "set", vm_name,
+                     "--nested-virt", "on"]
+                    , stdout=False)
+
+
+def generate_dumpxml(workdir, vm_name, vmlinuz, initrd, commandline):
+
+    domainxml = os.path.join(workdir, "configs", vm_name)
+    domainxml_tmp = domainxml + "_tmp"
+
+    with open(domainxml, 'w') as file:
+        subprocess.call(["virsh", "dumpxml", vm_name], stdout=file)
+
+    with open(domainxml) as file:
+        tmp = file.readlines()
+
+        for index, line in enumerate(tmp):
+            if "<qemu:commandline>" in line:
+                # Need to rewrite for XML
+                # This is not cool at all
+                tmp.insert(index + 1,"    <qemu:arg value='{}'/>\n".format(vmlinuz))
+                tmp.insert(index + 1,"    <qemu:arg value='-kernel'/>\n")
+                tmp.insert(index + 1,"    <qemu:arg value='{}'/>\n".format(initrd))
+                tmp.insert(index + 1,"    <qemu:arg value='-initrd'/>\n")
+                tmp.insert(index + 1,"    <qemu:arg value='{}'/>\n".format(commandline))
+                tmp.insert(index + 1,"    <qemu:arg value='-append'/>\n")
+
+        with open(domainxml_tmp, 'w') as file:
+            for line in tmp:
+                file.write(line)
+
+        return domainxml_tmp
 
 
 def start(vm_name):

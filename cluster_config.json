@@ -1,9 +1,10 @@
 {
     "general": {
-            "workdir": "/mnt/sin/kchestnov/workdir",
-            "iso": "/mnt/sin/goods/some_centos.iso",
+            "workdir": "/tmp/workdir",
+            "iso": "/home/kchestnov/Downloads/vz-platform-2.5.0-1642-1642.iso",
             "ks": "http://172.16.56.80/ks/cluster_config.cfg",
-            "ks_device": "eth0"
+            "ks_device": "eth0",
+            "is_created": ""
     },
     "cluster": {
             "name": "kchestnov-test-cluster",
@@ -19,8 +20,8 @@
             },
             "keys": {
                     "owner_key": "somekey",
-                    "ansible_key": "someanotherkey",
-            },
+                    "ansible_key": "someanotherkey"
+            }
     },
     "va": {
         "ip": "172.16.56.108"

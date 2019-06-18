@@ -1,69 +1,35 @@
 #!/usr/bin/python3
-import json
 import os
-from generators import generate_timestamp, generate_private_ip, generate_cmdline
-from os_tools import mount, umount
+import generators
+from os_tools_class import IsoTools
 from vm_tools import Vm
 
-
-# Temp name
-def generate_config(json_config):
-
-    # Create an array to store VMs:
-    vms = []
-
-    with open(json_config) as f:
-        config = json.load(f)
-        i = 1
-        for vm_public_ip in config['cluster']['public_net']['ips']:
-            # the name_generator should be better.
-            options = {}
-            options['iso_name'] = config['general']['iso']
-            options['hostname'] = generate_timestamp(config['cluster']['name']) + "-" + str(i)
-            options['public_ip'] = vm_public_ip
-            options['public_mask'] = config['cluster']['public_net']['mask']
-            options['public_gw'] = config['cluster']['public_net']['gw']
-            options['public_dns'] = config['cluster']['public_net']['dns']
-            options['ks_device'] = config['general']['ks_device']
-            options['ks'] = config['general']['ks']
-
-            if config['cluster']['private_net']['create'] == "True":
-                options['private_ip'] = generate_private_ip(vm_public_ip)
-                options['private_mask'] = config['cluster']['private_net']['mask']
-
-            # Try to create management containers
-            # Final decision is made by a kickstart file
-            # Depends on given cmdline options
-            # In case of troubles check cat /proc/cmdline
-            # From anaconda and compare with kickstart
-            if i == 1:
-                options['includes_va'] = True
-                options['va_ip'] = config['va']['ip']
-                options['includes_storage_ui'] = True
-                options['storage_ui_ip'] = config['storage_ui']['ip']
-            # In case there is no such values left blank
-            else:
-                options['va_ip'] = config['va']['ip']
-                options['storage_ui_ip'] = config['storage_ui']['ip']
-                options['storage_ui_token'] = config['storage_ui']['token']
-            vm = Vm(options)
-            vms.append(vm)
-            i += 1
-
-    return vms
 
 
 def main():
 
-    mount(config['general']['iso'],
-          os.path.join(config['general']['workdir'],"mounts",)
+    # Obtain all the parameters from json. It will generate a list of Vm objects + array of general options
+    # general option are to be used for mount iso, for example.
+    vms, general_options = generators.generate_config("/home/kchestnov/Python/cluster_tools/cluster_tools/cluster_config.json")
 
-    vms = generate_config("/home/kchestnov/PycharmProjects/clusterTools/cluster_config.json")
+    # I should mount iso only after I know that vms were created.
+    iso = IsoTools(general_options['iso'], os.path.join(general_options['workdir'], "mounts"))
+    iso.mount()
+
     for vm in vms:
         print(vm.options)
         print(vm.cmdline)
 
+        # The VM must have been created and dumpxml must have been created
+        # vm.define
+        # vm.start
+        # vm.wait
+        # vm.define
+        # vm.start
 
+
+    # After all of the VM have been created, umount ISO
+    iso.umount()
 
 
 if __name__ == "__main__":
