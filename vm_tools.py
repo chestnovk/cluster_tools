@@ -8,6 +8,42 @@ class Vm:
     def __init__(self, options, cmdline):
         self.options = options
         self.cmdline = cmdline
+
+    def create_vm(self):
+        name = self.options['name']
+        # Need to find a way how to define description
+        description = ""
+        iso = self.options['iso_name']
+
+        subprocess.call(["prlctl", "create", name,
+                          "--vmtype", "vm",
+                          "--distribution", "vzlinux7"]
+                         , stdout=False)
+
+        subprocess.call(["prlctl", "set", name,
+                          "--description", description]
+                         , stdout=False)
+
+        subprocess.call(["prlctl", "set", name,
+                          "--device-set", "net0",
+                          "--ipfilter", "no",
+                          "--macfilter", "no",
+                          "--preventpromisc", "no"]
+                         , stdout=False)
+
+        subprocess.call(["prlctl", "set", name,
+                          "--vnc-mode", "auto"]
+                         , stdout=False)
+
+        subprocess.call(["prlctl", "set", name,
+                          "--device-set", "cdrom0",
+                          "--connect", "--image", iso]
+                         , stdout=False)
+
+        # Enable support of  nested virt
+        subprocess.call(["prlctl", "set", name,
+                          "--nested-virt", "on"]
+                         , stdout=False)
     # define
     # create
     # configure
@@ -23,37 +59,7 @@ def define_vm(domainxml):
 
 
 # Rewrite to subprocess.run()
-def create_vm(vm_name, description, iso):
 
-    subprocess.call(["prlctl", "create", vm_name,
-                     "--vmtype", "vm",
-                     "--distribution", "vzlinux7"]
-                    , stdout=False)
-
-    subprocess.call(["prlctl", "set", vm_name,
-                     "--description", description]
-                    , stdout=False)
-
-    subprocess.call(["prlctl", "set", vm_name,
-                     "--device-set", "net0",
-                     "--ipfilter", "no",
-                     "--macfilter", "no",
-                     "--preventpromisc", "no"]
-                    , stdout=False)
-
-    subprocess.call(["prlctl", "set", vm_name,
-                     "--vnc-mode", "auto"]
-                    , stdout=False)
-
-    subprocess.call(["prlctl", "set", vm_name,
-                     "--device-set", "cdrom0",
-                     "--connect", "--image", iso]
-                    , stdout=False)
-
-    # Enable support of  nested virt
-    subprocess.call(["prlctl", "set", vm_name,
-                     "--nested-virt", "on"]
-                    , stdout=False)
 
 
 def generate_dumpxml(workdir, vm_name, vmlinuz, initrd, commandline):

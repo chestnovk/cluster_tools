@@ -20,7 +20,7 @@ def main():
         print(vm.options)
         print(vm.cmdline)
 
-        # The VM must have been created and dumpxml must have been created
+        # The VM must be created as well as dumpxml.
         # vm.define
         # vm.start
         # vm.wait
